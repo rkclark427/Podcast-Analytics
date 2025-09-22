@@ -1,0 +1,17 @@
+# R Package Requirements for Podcast Analytics
+# Install with: install.packages(c("tidyverse", "httr", "jsonlite", "lubridate", "rmarkdown"))
+
+# Core data manipulation and visualization
+tidyverse
+
+# HTTP requests for API calls
+httr
+
+# JSON parsing for API responses
+jsonlite
+
+# Date and time manipulation
+lubridate
+
+# R Markdown for report generation
+rmarkdown

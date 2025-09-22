@@ -1,0 +1,360 @@
+---
+title: "Podcast Analytics Report"
+subtitle: "Data-driven insights for podcast performance"
+author: "Automated Analysis Pipeline"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
+    fig_width: 10
+    fig_height: 6
+  pdf_document:
+    toc: true
+    fig_width: 8
+    fig_height: 5
+---
+
+```{r setup, include=FALSE}
+# Setup chunk - configure knitr options
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+
+# Load required libraries
+library(tidyverse)
+library(lubridate)
+library(knitr)
+library(plotly)
+library(DT)
+
+# Set ggplot theme
+theme_set(theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "gray60"),
+    axis.title = element_text(size = 12),
+    legend.position = "bottom"
+  ))
+```
+
+```{r load-data}
+# Load processed data
+if (file.exists("data/processed/podcast_analytics.rds")) {
+  data_list <- readRDS("data/processed/podcast_analytics.rds")
+  processed_data <- data_list$processed_data
+  summary_stats <- data_list$summary_stats
+  platform_summary <- data_list$platform_summary
+} else {
+  # Fallback: try to read CSV files
+  if (file.exists("data/processed/podcast_metrics_processed.csv")) {
+    processed_data <- read_csv("data/processed/podcast_metrics_processed.csv", show_col_types = FALSE)
+    summary_stats <- read_csv("data/processed/summary_statistics.csv", show_col_types = FALSE)
+    platform_summary <- read_csv("data/processed/platform_summary.csv", show_col_types = FALSE)
+  } else {
+    stop("No processed data found. Please run scripts/fetch_and_analyze.R first.")
+  }
+}
+
+# Calculate date range for report
+date_range <- paste(min(processed_data$date), "to", max(processed_data$date))
+```
+
+# Executive Summary
+
+This report provides comprehensive analytics for podcast performance from **`r date_range`**. The analysis includes download trends, audience engagement metrics, and platform-specific insights.
+
+## Key Metrics
+
+```{r key-metrics}
+# Create summary metrics table
+metrics_table <- data.frame(
+  Metric = c(
+    "Total Downloads",
+    "Average Daily Downloads", 
+    "Total Plays",
+    "Average Play Rate",
+    "Average Engagement Rate",
+    "Analysis Period"
+  ),
+  Value = c(
+    format(summary_stats$total_downloads, big.mark = ","),
+    format(round(summary_stats$avg_daily_downloads, 1), big.mark = ","),
+    format(summary_stats$total_plays, big.mark = ","),
+    paste0(round(summary_stats$avg_play_rate * 100, 1), "%"),
+    paste0(round(summary_stats$avg_engagement_rate * 100, 1), "%"),
+    paste(summary_stats$date_range_start, "to", summary_stats$date_range_end)
+  )
+)
+
+kable(metrics_table, align = c("l", "r"))
+```
+
+# Download Trends
+
+## Daily Downloads Over Time
+
+```{r downloads-trend}
+# Create interactive time series plot
+p1 <- processed_data %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = downloads, color = "Daily Downloads"), size = 0.8, alpha = 0.7) +
+  geom_line(aes(y = downloads_7day_ma, color = "7-Day Moving Average"), size = 1.2) +
+  labs(
+    title = "Podcast Downloads Over Time",
+    subtitle = "Daily downloads with 7-day moving average trend",
+    x = "Date",
+    y = "Downloads",
+    color = "Metric"
+  ) +
+  scale_color_manual(
+    values = c("Daily Downloads" = "#3498db", "7-Day Moving Average" = "#e74c3c")
+  ) +
+  scale_y_continuous(labels = scales::comma_format())
+
+# Convert to interactive plot
+ggplotly(p1) %>%
+  layout(hovermode = "x unified")
+```
+
+## Weekly Patterns
+
+```{r weekly-patterns}
+# Analyze patterns by day of week
+weekly_pattern <- processed_data %>%
+  group_by(week_day) %>%
+  summarise(
+    avg_downloads = mean(downloads, na.rm = TRUE),
+    avg_plays = mean(plays, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p2 <- weekly_pattern %>%
+  ggplot(aes(x = week_day, y = avg_downloads, fill = week_day)) +
+  geom_col(alpha = 0.8) +
+  labs(
+    title = "Average Downloads by Day of Week",
+    subtitle = "Identifying optimal publishing days",
+    x = "Day of Week",
+    y = "Average Downloads"
+  ) +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = scales::comma_format())
+
+ggplotly(p2)
+```
+
+# Engagement Analysis
+
+## Play Rate and Engagement Trends
+
+```{r engagement-trends}
+# Create engagement metrics plot
+p3 <- processed_data %>%
+  select(date, play_rate, engagement_rate) %>%
+  pivot_longer(cols = c(play_rate, engagement_rate), 
+               names_to = "metric", values_to = "rate") %>%
+  mutate(
+    metric = case_when(
+      metric == "play_rate" ~ "Play Rate",
+      metric == "engagement_rate" ~ "Engagement Rate"
+    )
+  ) %>%
+  ggplot(aes(x = date, y = rate, color = metric)) +
+  geom_line(size = 1, alpha = 0.8) +
+  geom_smooth(method = "loess", se = FALSE, size = 0.8) +
+  labs(
+    title = "Engagement Metrics Over Time",
+    subtitle = "Play rate and engagement rate trends with smoothed trend lines",
+    x = "Date",
+    y = "Rate",
+    color = "Metric"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_color_manual(values = c("Play Rate" = "#2ecc71", "Engagement Rate" = "#f39c12"))
+
+ggplotly(p3)
+```
+
+## Correlation Analysis
+
+```{r correlation-analysis}
+# Calculate correlations between metrics
+correlation_data <- processed_data %>%
+  select(downloads, plays, unique_listeners) %>%
+  cor(use = "complete.obs") %>%
+  round(3)
+
+kable(correlation_data, caption = "Correlation Matrix: Key Metrics")
+```
+
+# Platform Performance
+
+## Platform Distribution
+
+```{r platform-distribution}
+# Platform breakdown visualization
+p4 <- platform_summary %>%
+  ggplot(aes(x = reorder(platform, download_share), y = download_share, fill = platform)) +
+  geom_col(alpha = 0.8) +
+  coord_flip() +
+  labs(
+    title = "Downloads by Platform",
+    subtitle = "Platform market share analysis",
+    x = "Platform",
+    y = "Share of Total Downloads (%)"
+  ) +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1))
+
+ggplotly(p4)
+```
+
+## Platform Performance Table
+
+```{r platform-table}
+# Detailed platform table
+platform_detailed <- platform_summary %>%
+  mutate(
+    download_share = paste0(round(download_share, 1), "%"),
+    avg_downloads = round(avg_downloads, 1)
+  ) %>%
+  rename(
+    Platform = platform,
+    `Total Downloads` = total_downloads,
+    `Average Downloads` = avg_downloads,
+    `Total Episodes` = total_episodes,
+    `Market Share` = download_share
+  )
+
+datatable(
+  platform_detailed,
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    dom = 't'
+  ),
+  caption = "Detailed Platform Performance Metrics"
+)
+```
+
+# Advanced Analytics
+
+## Monthly Trends
+
+```{r monthly-trends}
+# Monthly aggregation
+monthly_data <- processed_data %>%
+  mutate(year_month = floor_date(date, "month")) %>%
+  group_by(year_month) %>%
+  summarise(
+    total_downloads = sum(downloads, na.rm = TRUE),
+    avg_daily_downloads = mean(downloads, na.rm = TRUE),
+    total_plays = sum(plays, na.rm = TRUE),
+    avg_engagement = mean(engagement_rate, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+if(nrow(monthly_data) > 1) {
+  p5 <- monthly_data %>%
+    ggplot(aes(x = year_month, y = total_downloads)) +
+    geom_line(size = 1.2, color = "#3498db") +
+    geom_point(size = 3, color = "#e74c3c") +
+    labs(
+      title = "Monthly Download Trends",
+      subtitle = "Total downloads by month",
+      x = "Month",
+      y = "Total Downloads"
+    ) +
+    scale_y_continuous(labels = scales::comma_format()) +
+    scale_x_date(date_labels = "%Y-%m", date_breaks = "1 month")
+  
+  ggplotly(p5)
+}
+```
+
+## Performance Outliers
+
+```{r outliers}
+# Identify high and low performing episodes
+outliers <- processed_data %>%
+  mutate(
+    z_score_downloads = scale(downloads)[,1],
+    performance = case_when(
+      z_score_downloads > 1.5 ~ "High Performer",
+      z_score_downloads < -1.5 ~ "Low Performer",
+      TRUE ~ "Average"
+    )
+  ) %>%
+  filter(performance != "Average") %>%
+  select(date, episode_title, downloads, plays, performance) %>%
+  arrange(desc(downloads))
+
+if(nrow(outliers) > 0) {
+  datatable(
+    outliers,
+    options = list(pageLength = 5, scrollX = TRUE),
+    caption = "High and Low Performing Episodes"
+  )
+}
+```
+
+# Recommendations
+
+Based on the analysis, here are key recommendations for optimizing podcast performance:
+
+```{r recommendations, results='asis'}
+# Generate dynamic recommendations based on data
+avg_play_rate <- summary_stats$avg_play_rate
+avg_engagement <- summary_stats$avg_engagement_rate
+
+# Best performing day
+best_day <- weekly_pattern %>% 
+  filter(avg_downloads == max(avg_downloads)) %>% 
+  pull(week_day)
+
+# Top platform
+top_platform <- platform_summary %>%
+  filter(download_share == max(download_share)) %>%
+  pull(platform)
+
+recommendations <- c()
+
+if(avg_play_rate < 0.8) {
+  recommendations <- c(recommendations, 
+    "**Improve Content Engagement**: Current play rate is below 80%. Consider reviewing episode intros and content structure.")
+}
+
+if(length(unique(processed_data$platform)) > 1) {
+  recommendations <- c(recommendations,
+    paste0("**Focus Platform Strategy**: ", top_platform, " shows the highest performance. Consider platform-specific optimization."))
+}
+
+recommendations <- c(recommendations,
+  paste0("**Optimal Publishing**: ", best_day, " shows the highest average downloads. Consider consistent publishing on this day."))
+
+if(length(recommendations) > 0) {
+  cat(paste("1.", recommendations, collapse = "\n\n"))
+} else {
+  cat("Performance metrics look healthy across all measured dimensions.")
+}
+```
+
+---
+
+## Technical Notes
+
+- **Data Period**: `r date_range`
+- **Last Updated**: `r Sys.time()`
+- **Moving Averages**: 7-day rolling average used for trend smoothing
+- **Engagement Rate**: Calculated as unique listeners / total downloads
+- **Play Rate**: Calculated as total plays / total downloads
+
+*This report is automatically generated by the podcast analytics pipeline. For questions or customizations, please refer to the repository documentation.*

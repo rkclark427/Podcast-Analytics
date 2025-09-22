@@ -1,0 +1,66 @@
+# R and RStudio files
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.Rproj.user/
+
+# R package build files
+*.tar.gz
+*.zip
+
+# Temporary R files
+*~
+*.swp
+*.tmp
+
+# Data files - keep structure but ignore actual data content
+data/raw/*.csv
+data/raw/*.json
+data/raw/*.xml
+data/processed/*.csv
+data/processed/*.json
+data/processed/*.xml
+data/processed/*.html
+data/processed/*.pdf
+
+# Keep directory structure
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Reports and outputs
+reports/*.html
+reports/*.pdf
+reports/*.docx
+reports/*.png
+reports/*.jpg
+reports/*.jpeg
+
+# Keep reports directory structure
+!reports/.gitkeep
+
+# API keys and secrets
+.env
+secrets.txt
+config.txt
+credentials.json
+*.key
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Log files
+*.log
+
+# Cache directories
+cache/
+.cache/
+
+# Temporary files
+tmp/
+temp/

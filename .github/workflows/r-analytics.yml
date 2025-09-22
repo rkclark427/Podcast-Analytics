@@ -88,14 +88,20 @@ jobs:
         # Add any environment variables here if needed for API access
         TZ: UTC
     
-    - name: Run main analytics (placeholder for future scripts)
+    - name: Run main analytics scripts
       run: |
-        echo "Main analytics step would run here..."
+        echo "Running main analytics scripts..."
         echo "Looking for additional R scripts in scripts/ directory..."
-        find scripts/ -name "*.R" -not -name "fetch_rss.R" | while read script; do
-          echo "Found additional script: $script"
-          echo "Would execute: Rscript $script"
+        
+        # Find and execute all R scripts except fetch_rss.R
+        find scripts/ -name "*.R" -not -name "fetch_rss.R" | sort | while read script; do
+          echo "Executing: $script"
+          Rscript "$script" || {
+            echo "Warning: Script $script failed, continuing with other scripts..."
+          }
         done
+        
+        echo "Analytics scripts execution completed."
     
     - name: Upload processed data as artifact
       uses: actions/upload-artifact@v3

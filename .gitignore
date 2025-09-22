@@ -1,0 +1,69 @@
+# R specific files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets and configuration
+.env
+.env.local
+config.yml
+secrets.yml
+api_keys.txt
+credentials.json
+
+# Data files (keep processed data, ignore raw downloads)
+data/raw/*.xml
+data/raw/*.json
+data/raw/*.csv
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Backup files
+*.backup.*
+*.bak
+
+# Log files
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# R package development
+man/
+NAMESPACE
+*.Rd
+vignettes/*.html
+vignettes/*.pdf
+
+# Rmarkdown outputs
+*.html
+*.pdf
+!README.html

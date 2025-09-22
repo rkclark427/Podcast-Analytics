@@ -1,0 +1,124 @@
+name: Podcast Analytics Pipeline
+
+on:
+  # Run on push to main branch
+  push:
+    branches: [ main ]
+  
+  # Run on pull requests
+  pull_request:
+    branches: [ main ]
+  
+  # Schedule to run daily at 9 AM UTC to keep episode database current
+  schedule:
+    - cron: '0 9 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  podcast-analytics:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.3.1'
+        use-public-rspm: true
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libxml2-dev \
+          libfontconfig1-dev \
+          libharfbuzz-dev \
+          libfribidi-dev \
+          libfreetype6-dev \
+          libpng-dev \
+          libtiff5-dev \
+          libjpeg-dev
+    
+    - name: Cache R packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.R_LIBS_USER }}
+        key: ${{ runner.os }}-r-${{ hashFiles('requirements.txt') }}
+        restore-keys: ${{ runner.os }}-r-
+    
+    - name: Install R dependencies
+      run: |
+        # Read requirements.txt and install packages
+        Rscript -e "
+          # Read package list from requirements.txt (excluding comments and empty lines)
+          packages <- readLines('requirements.txt')
+          packages <- packages[!grepl('^#|^$', packages)]
+          packages <- trimws(packages)
+          packages <- packages[packages != '']
+          
+          cat('Installing packages:', paste(packages, collapse=', '), '\n')
+          
+          # Install packages
+          install.packages(packages, dependencies = TRUE, repos = 'https://cloud.r-project.org/')
+          
+          # Verify installation
+          for (pkg in packages) {
+            if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+              stop(paste('Failed to install package:', pkg))
+            }
+          }
+          cat('All packages installed successfully!\n')
+        "
+    
+    - name: Create data directories
+      run: |
+        mkdir -p data/raw data/processed
+    
+    - name: Fetch RSS feed data
+      run: |
+        echo "Fetching podcast RSS feed data..."
+        Rscript scripts/fetch_rss.R
+      env:
+        # Add any environment variables here if needed for API access
+        TZ: UTC
+    
+    - name: Run main analytics (placeholder for future scripts)
+      run: |
+        echo "Main analytics step would run here..."
+        echo "Looking for additional R scripts in scripts/ directory..."
+        find scripts/ -name "*.R" -not -name "fetch_rss.R" | while read script; do
+          echo "Found additional script: $script"
+          echo "Would execute: Rscript $script"
+        done
+    
+    - name: Upload processed data as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: podcast-data-${{ github.run_number }}
+        path: |
+          data/processed/
+          !data/processed/.gitkeep
+        retention-days: 30
+    
+    - name: Display data summary
+      run: |
+        echo "=== PROCESSED DATA SUMMARY ==="
+        if [ -f "data/processed/episodes_metadata.csv" ]; then
+          echo "Episodes metadata file size: $(stat -c%s data/processed/episodes_metadata.csv) bytes"
+          echo "Number of episodes: $(tail -n +2 data/processed/episodes_metadata.csv | wc -l)"
+          echo "File last modified: $(stat -c %y data/processed/episodes_metadata.csv)"
+        else
+          echo "No episodes metadata file found"
+        fi
+        
+        echo ""
+        echo "All processed files:"
+        find data/processed/ -type f -not -name ".gitkeep" | while read file; do
+          echo "  - $file ($(stat -c%s "$file") bytes)"
+        done

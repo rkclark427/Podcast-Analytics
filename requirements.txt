@@ -1,0 +1,29 @@
+# R Package Dependencies for Podcast Analytics
+# Install these packages using: install.packages(c("package1", "package2", ...))
+
+# Core data processing packages
+dplyr
+readr
+tidyr
+stringr
+
+# Date/time handling
+lubridate
+
+# RSS feed processing
+tidyRSS
+
+# Data visualization (for future analytics scripts)
+ggplot2
+scales
+
+# Web scraping and HTTP requests (for future API integrations)
+httr
+jsonlite
+
+# Statistical analysis
+broom
+
+# Markdown and reporting (for future report generation)
+rmarkdown
+knitr
